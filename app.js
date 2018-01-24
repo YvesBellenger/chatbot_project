@@ -21,13 +21,14 @@ server.post('/api/messages', connector.listen());
 var bot = new botbuilder.UniversalBot(connector, [
 
     function (session) {
-        session.beginDialog('rh:offers', session.dialogData);
+        session.beginDialog('candidat:apply', session.dialogData);
         bot.beginDialogAction('applications', 'rh:applications');
 
     }
 ]);
 
 bot.library(require('./dialogs/rh'));
+bot.library(require('./dialogs/candidat'));
 
 
 //Integer Luis

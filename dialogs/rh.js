@@ -1,4 +1,5 @@
 var botbuilder = require('botbuilder');
+var uniqid = require('uniqid');
 
 const library = new botbuilder.Library('rh');
 
@@ -44,7 +45,7 @@ library.dialog('offers', [
                         .subtitle("Date d'embauche : " + dateOffer)
                         .text("Description : " + offersSaved[i].description  + "\n \r" +
                             "Date de création : " + offersSaved[i].creationDate)
-                        .buttons([botbuilder.CardAction.dialogAction(session, 'applications', 'index=' + i, 'Voir les candidatures')]);
+                        .buttons([botbuilder.CardAction.dialogAction(session, 'applications', 'id=' + offersSaved[i].id, 'Voir les candidatures')]);
                     richcards.push(richcard);
                 }
                 msg.attachments(richcards);
@@ -81,6 +82,7 @@ library.dialog('offers', [
             var monthCreate = (dateCreate.getMonth() + 1).toString();
             dateCreate = (dayCreate[1] ? dayCreate : '0' + dayCreate[0]) + '/' + (monthCreate[1] ? monthCreate : '0' + monthCreate[0]) + '/' + dateCreate.getFullYear();
             session.dialogData.currentOffer.creationDate = dateCreate;
+            session.dialogData.currentOffer.id = uniqid();
             session.userData.offers.push(session.dialogData.currentOffer);
             var fs = require('fs');
             var offersSaved = JSON.parse(fs.readFileSync('data/offers.json', 'utf8'));
@@ -102,9 +104,55 @@ library.dialog('offers', [
 
 library.dialog('applications', [
     function(session, args, next) {
-
         var fs = require('fs');
-        fs.writeFile("data/applications.json", JSON.stringify(applications));
+        var applications = JSON.parse(fs.readFileSync('data/applications.json', 'utf8'));
+        var id = args.data.substr(3);
+        for (var i = 0; i<applications.length; i++) {
+            if (id == applications[i].offerId) {
+                var msg = new botbuilder.Message(session);
+                msg.attachmentLayout(botbuilder.AttachmentLayout.carousel);
+                var richcards = [];
+                for (var j = 0; j<applications[i].applications.length; j++) {
+                    var candidat = applications[i].applications[j];
+
+                    var richcard =  new botbuilder.HeroCard()
+                        .title(candidat.first_name + ' ' + candidat.last_name)
+                        .text("Email : " + candidat.email +  "\n \r" +
+                              "Téléphone : " + candidat.phone)
+                        .buttons([botbuilder.CardAction.dialogAction(session, 'details', 'id=' + candidat.id, 'Voir les détails')]);
+                    richcards.push(richcard);
+                }
+                msg.attachments(richcards);
+                session.send(msg);
+            }
+        }
+    }
+]);
+
+
+library.dialog('details', [
+    function(session, args, next) {
+        var fs = require('fs');
+        var applications = JSON.parse(fs.readFileSync('data/applications.json', 'utf8'));
+        var id = args.data.substr(3);
+        for (var i = 0; i<applications.length; i++) {
+            for(var j = 0; j < applications[i].applications.length; j++){
+                if (id == applications[i].applications[j].id) {
+                    var candidat = applications[i].applications[j];
+                    botbuilder.Prompts.text(session, "nom : " + candidat.last_name + 
+                    "\n \r prénom : " + candidat.first_name +
+                    "\n \r email : " + candidat.email +
+                    "\n \r téléphone : " + candidat.numero);
+                    for(var k = 0; k<candidat.experiences.length; k++){
+                        botbuilder.Prompts.text(session,"- " + candidat.experiences[k].experience + 
+                        " de " + candidat.experiences[k].start + " à " + candidat.experiences[k].end + "\n \r");
+                    }
+                    for(var k = 0; k<candidat.competences.length; k++){
+                        botbuilder.Prompts.text(session,"- " + candidat.competences[k] + "\n \r");
+                    }
+                }
+            }            
+        }
     }
 ]);
 

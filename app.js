@@ -18,12 +18,49 @@ var connector = new botbuilder.ChatConnector({
 //listen for messages from users 
 server.post('/api/messages', connector.listen());
 
-var bot = new botbuilder.UniversalBot(connector, [
+var bot = new botbuilder.UniversalBot(connector, function(session) {
+    session.beginDialog('chooseProfile');
+});
 
-    function (session) {
-        session.beginDialog('candidat:apply', session.dialogData);
-        bot.beginDialogAction('applications', 'rh:applications');
+bot.dialog('chooseProfile', [
 
+    function (session, args, next) {
+        botbuilder.Prompts.choice(session, "Bienvenue ! Qui êtes vous ?", "Je suis un candidat|Je suis un recruteur", {
+            listStyle: botbuilder.ListStyle.button
+        });
+        next();
+
+    },
+
+    function (session, results, next) {
+        if (results.response.index == 0) {
+            session.beginDialog('candidat:apply', session.dialogData);
+            bot.beginDialogAction('detailsOffer', 'candidat:detailsOffer');
+        } else if (results.response.index == 1) {
+            next();
+        }
+
+    },
+
+    function (session, results, next) {
+        if (!session.dialogData.password) {
+            botbuilder.Prompts.text(session, "Quel est votre mot de passe ?");
+        } else {
+            next();
+        }
+    },
+
+    function (session, results, next) {
+        if (results.response) {
+            if (results.response == process.env.RH_PASSWORD) {
+                session.beginDialog('rh:offers', session.dialogData);
+                bot.beginDialogAction('applications', 'rh:applications');
+                bot.beginDialogAction('details', "rh:details");
+            } else {
+                bot.send('Le mot de passe n\'est pas correct.');
+                session.replaceDialog('chooseProfile', { reprompt: true });
+            }
+        }
     }
 ]);
 
